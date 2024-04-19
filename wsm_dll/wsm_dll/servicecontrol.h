@@ -1,11 +1,13 @@
 #pragma once
+#include <vector>
+#include <windows.h>
 
-extern "C" __declspec(dllexport) void EnumerateServices();
-extern "C" __declspec(dllexport) void StartServiceC(const char* serviceName);
-extern "C" __declspec(dllexport) void StopService(const char* serviceName);
-extern "C" __declspec(dllexport) void RestartService(const char* serviceName);
-extern "C" __declspec(dllexport) void PauseService(const char* serviceName);
-extern "C" __declspec(dllexport) void ContinueService(const char* serviceName);
-extern "C" __declspec(dllexport) void ChangeStartType(const char* serviceName, DWORD startType);
-extern "C" __declspec(dllexport) void FindServiceByName(const char* serviceName);
-extern "C" __declspec(dllexport) void GetServiceInfo(const char* serviceName);
+extern "C" __declspec(dllexport) const wchar_t** EnumerateServices();
+extern "C" __declspec(dllexport) int StartServiceC(const char* serviceName);
+extern "C" __declspec(dllexport) int StopService(const char* serviceName);
+extern "C" __declspec(dllexport) int RestartService(const char* serviceName);
+extern "C" __declspec(dllexport) int PauseService(const char* serviceName);
+extern "C" __declspec(dllexport) int ContinueService(const char* serviceName);
+extern "C" __declspec(dllexport) int ChangeStartType(const char* serviceName, DWORD startType);
+extern "C" __declspec(dllexport) const wchar_t* FindServiceByName(const char* serviceName);
+extern "C" __declspec(dllexport) const wchar_t* GetServiceInfo(const char* serviceName);
