@@ -32,7 +32,6 @@ extern "C" __declspec(dllexport) const wchar_t** EnumerateServices() {
 
     // Allocate memory for array of wchar_t pointers
     const wchar_t** serviceNames = new const wchar_t* [servicesCount];
-
     for (DWORD i = 0; i < servicesCount; i++) {
         // Allocate memory for each service name and copy it
         size_t len = wcslen(services[i].lpServiceName);
@@ -276,10 +275,10 @@ extern "C" __declspec(dllexport) const wchar_t* FindServiceByName(const char* se
     return result;
 }
 
-extern "C" __declspec(dllexport) const wchar_t* GetServiceInfo(const char* serviceName) {
+extern "C" __declspec(dllexport) const char* GetServiceInfo(const char* serviceName) {
     SC_HANDLE scm = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
     if (scm == NULL) {
-        return L"Failed to open service control manager.";
+        return "Failed to open service control manager.";
     }
 
     int len = MultiByteToWideChar(CP_ACP, 0, serviceName, -1, NULL, 0);
@@ -288,9 +287,11 @@ extern "C" __declspec(dllexport) const wchar_t* GetServiceInfo(const char* servi
 
     SC_HANDLE service = OpenService(scm, wideServiceName, SERVICE_QUERY_STATUS | SERVICE_QUERY_CONFIG);
 
+    delete[] wideServiceName;
+
     if (service == NULL) {
         CloseServiceHandle(scm);
-        return L"Failed to open service.";
+        return "Failed to open service.";
     }
 
     SERVICE_STATUS_PROCESS serviceStatus;
@@ -298,7 +299,7 @@ extern "C" __declspec(dllexport) const wchar_t* GetServiceInfo(const char* servi
     if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&serviceStatus, sizeof(SERVICE_STATUS_PROCESS), &bytesNeeded)) {
         CloseServiceHandle(service);
         CloseServiceHandle(scm);
-        return L"Failed to query service status.";
+        return "Failed to query service status.";
     }
 
     LPQUERY_SERVICE_CONFIG serviceConfig = NULL;
@@ -308,73 +309,65 @@ extern "C" __declspec(dllexport) const wchar_t* GetServiceInfo(const char* servi
         if (serviceConfig == NULL) {
             CloseServiceHandle(service);
             CloseServiceHandle(scm);
-            return L"Failed to allocate memory.";
+            return "Failed to allocate memory.";
         }
 
         if (!QueryServiceConfig(service, serviceConfig, bufferSize, &bytesNeeded)) {
             HeapFree(GetProcessHeap(), 0, serviceConfig);
             CloseServiceHandle(service);
             CloseServiceHandle(scm);
-            return L"Failed to query service configuration.";
+            return "Failed to query service configuration.";
         }
     }
 
-    std::wstring serviceInfo;
+    std::string serviceInfo;
 
-    serviceInfo += L"Service Name: ";
-    serviceInfo += wideServiceName;
-    serviceInfo += L"\n";
-
-    delete[] wideServiceName;
-
-    serviceInfo += L"Service State: ";
     switch (serviceStatus.dwCurrentState) {
     case SERVICE_STOPPED:
-        serviceInfo += L"Stopped\n";
+        serviceInfo += "Stopped,";
         break;
     case SERVICE_START_PENDING:
-        serviceInfo += L"Start Pending\n";
+        serviceInfo += "Start Pending,";
         break;
     case SERVICE_STOP_PENDING:
-        serviceInfo += L"Stop Pending\n";
+        serviceInfo += "Stop Pending,";
         break;
     case SERVICE_RUNNING:
-        serviceInfo += L"Running\n";
+        serviceInfo += "Running,";
         break;
     case SERVICE_CONTINUE_PENDING:
-        serviceInfo += L"Continue Pending\n";
+        serviceInfo += "Continue Pending,";
         break;
     case SERVICE_PAUSE_PENDING:
-        serviceInfo += L"Pause Pending\n";
+        serviceInfo += "Pause Pending,";
         break;
     case SERVICE_PAUSED:
-        serviceInfo += L"Paused\n";
+        serviceInfo += "Paused,";
         break;
     default:
-        serviceInfo += L"Unknown\n";
+        serviceInfo += "Unknown,";
         break;
     }
 
     if (serviceConfig != NULL) {
-        serviceInfo += L"Service Start Type: ";
         switch (serviceConfig->dwStartType) {
         case SERVICE_BOOT_START:
-            serviceInfo += L"Boot\n";
+            serviceInfo += "Boot";
             break;
         case SERVICE_SYSTEM_START:
-            serviceInfo += L"System\n";
+            serviceInfo += "System";
             break;
         case SERVICE_AUTO_START:
-            serviceInfo += L"Auto\n";
+            serviceInfo += "Auto";
             break;
         case SERVICE_DEMAND_START:
-            serviceInfo += L"Manual\n";
+            serviceInfo += "Manual";
             break;
         case SERVICE_DISABLED:
-            serviceInfo += L"Disabled\n";
+            serviceInfo += "Disabled";
             break;
         default:
-            serviceInfo += L"Unknown\n";
+            serviceInfo += "Unknown";
             break;
         }
 
@@ -384,7 +377,36 @@ extern "C" __declspec(dllexport) const wchar_t* GetServiceInfo(const char* servi
     CloseServiceHandle(service);
     CloseServiceHandle(scm);
 
-    // Convert std::wstring to const wchar_t* for return
-    const wchar_t* result = serviceInfo.c_str();
+    // Convert std::string to const char* for return
+    char* result = new char[serviceInfo.length() + 1];
+    strcpy_s(result, serviceInfo.length() + 1, serviceInfo.c_str());
+
     return result;
+}
+
+extern "C" __declspec(dllexport) DWORD GetServicesCount() {
+    SC_HANDLE scm = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (scm == NULL) {
+        std::cerr << "Failed to open service control manager." << std::endl;
+        return 0;
+    }
+
+    DWORD bytesNeeded, servicesCount, resumeHandle = 0;
+    EnumServicesStatus(scm, SERVICE_WIN32, SERVICE_STATE_ALL, NULL, 0, &bytesNeeded, &servicesCount, &resumeHandle);
+
+    if (GetLastError() != ERROR_MORE_DATA) {
+        std::cerr << "Failed to enumerate services." << std::endl;
+        CloseServiceHandle(scm);
+        return 0;
+    }
+
+    LPENUM_SERVICE_STATUS services = (LPENUM_SERVICE_STATUS)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bytesNeeded);
+    if (!EnumServicesStatus(scm, SERVICE_WIN32, SERVICE_STATE_ALL, services, bytesNeeded, &bytesNeeded, &servicesCount, &resumeHandle)) {
+        std::cerr << "Failed to enumerate services." << std::endl;
+        CloseServiceHandle(scm);
+        HeapFree(GetProcessHeap(), 0, services);
+        return 0;
+    }
+    CloseServiceHandle(scm);
+    return servicesCount;
 }
