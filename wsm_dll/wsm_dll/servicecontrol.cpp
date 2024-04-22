@@ -235,46 +235,6 @@ extern "C" __declspec(dllexport) int ChangeStartType(const char* serviceName, DW
     return 0; // Service start type changed successfully
 }
 
-extern "C" __declspec(dllexport) const wchar_t* FindServiceByName(const char* serviceName) {
-    SC_HANDLE scm = OpenSCManager(NULL, NULL, SC_MANAGER_ENUMERATE_SERVICE);
-    if (scm == NULL) {
-        return L"Failed to open service control manager.";
-    }
-
-    DWORD bytesNeeded, servicesCount, resumeHandle = 0;
-    EnumServicesStatus(scm, SERVICE_WIN32, SERVICE_STATE_ALL, NULL, 0, &bytesNeeded, &servicesCount, &resumeHandle);
-
-    if (GetLastError() != ERROR_MORE_DATA) {
-        CloseServiceHandle(scm);
-        return L"Failed to enumerate services.";
-    }
-
-    LPENUM_SERVICE_STATUS services = (LPENUM_SERVICE_STATUS)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bytesNeeded);
-    if (!EnumServicesStatus(scm, SERVICE_WIN32, SERVICE_STATE_ALL, services, bytesNeeded, &bytesNeeded, &servicesCount, &resumeHandle)) {
-        CloseServiceHandle(scm);
-        HeapFree(GetProcessHeap(), 0, services);
-        return L"Failed to enumerate services.";
-    }
-
-    int len = MultiByteToWideChar(CP_ACP, 0, serviceName, -1, NULL, 0);
-    wchar_t* wideServiceName = new wchar_t[len];
-    MultiByteToWideChar(CP_ACP, 0, serviceName, -1, wideServiceName, len);
-
-    const wchar_t* result = L"Service not found.";
-    for (DWORD i = 0; i < servicesCount; i++) {
-        if (wcscmp(services[i].lpServiceName, wideServiceName) == 0) {
-            result = services[i].lpServiceName;
-            break;
-        }
-    }
-
-    delete[] wideServiceName;
-
-    CloseServiceHandle(scm);
-    HeapFree(GetProcessHeap(), 0, services);
-    return result;
-}
-
 extern "C" __declspec(dllexport) const char* GetServiceInfo(const char* serviceName) {
     SC_HANDLE scm = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
     if (scm == NULL) {

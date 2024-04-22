@@ -9,7 +9,7 @@ extern "C" __declspec(dllexport) int RestartService(const char* serviceName);
 extern "C" __declspec(dllexport) int PauseService(const char* serviceName);
 extern "C" __declspec(dllexport) int ContinueService(const char* serviceName);
 extern "C" __declspec(dllexport) int ChangeStartType(const char* serviceName, DWORD startType);
-extern "C" __declspec(dllexport) const wchar_t* FindServiceByName(const char* serviceName);
+extern "C" __declspec(dllexport) const wchar_t** FindServiceByName(const char* name);
 extern "C" __declspec(dllexport) const char* GetServiceInfo(const char* serviceName);
 extern "C" __declspec(dllexport) DWORD GetServicesCount();
 extern "C" __declspec(dllexport) const char** EnumerateServicesWithInfo();
