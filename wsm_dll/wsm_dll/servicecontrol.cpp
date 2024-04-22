@@ -410,3 +410,129 @@ extern "C" __declspec(dllexport) DWORD GetServicesCount() {
     CloseServiceHandle(scm);
     return servicesCount;
 }
+
+extern "C" __declspec(dllexport) const char** EnumerateServicesWithInfo() {
+    SC_HANDLE scm = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (scm == NULL) {
+        std::cerr << "Failed to open service control manager." << std::endl;
+        return nullptr;
+    }
+
+    DWORD bytesNeeded, servicesCount, resumeHandle = 0;
+    EnumServicesStatus(scm, SERVICE_WIN32, SERVICE_STATE_ALL, NULL, 0, &bytesNeeded, &servicesCount, &resumeHandle);
+
+    if (GetLastError() != ERROR_MORE_DATA) {
+        std::cerr << "Failed to enumerate services." << std::endl;
+        CloseServiceHandle(scm);
+        return nullptr;
+    }
+
+    LPENUM_SERVICE_STATUS services = (LPENUM_SERVICE_STATUS)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bytesNeeded);
+    if (!EnumServicesStatus(scm, SERVICE_WIN32, SERVICE_STATE_ALL, services, bytesNeeded, &bytesNeeded, &servicesCount, &resumeHandle)) {
+        std::cerr << "Failed to enumerate services." << std::endl;
+        CloseServiceHandle(scm);
+        HeapFree(GetProcessHeap(), 0, services);
+        return nullptr;
+    }
+
+    // Allocate memory for array of char pointers
+    const char** serviceInfos = new const char* [servicesCount];
+    for (DWORD i = 0; i < servicesCount; i++) {
+        SC_HANDLE service = OpenService(scm, services[i].lpServiceName, SERVICE_QUERY_CONFIG);
+        if (service == NULL) {
+            std::cerr << "Failed to open service." << std::endl;
+            continue;
+        }
+
+        LPQUERY_SERVICE_CONFIG serviceConfig = NULL;
+        DWORD bufferSize = 0;
+        if (!QueryServiceConfig(service, NULL, 0, &bufferSize) && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+            serviceConfig = (LPQUERY_SERVICE_CONFIG)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bufferSize);
+            if (serviceConfig == NULL) {
+                std::cerr << "Failed to allocate memory." << std::endl;
+                CloseServiceHandle(service);
+                continue;
+            }
+
+            if (!QueryServiceConfig(service, serviceConfig, bufferSize, &bytesNeeded)) {
+                std::cerr << "Failed to query service configuration." << std::endl;
+                HeapFree(GetProcessHeap(), 0, serviceConfig);
+                CloseServiceHandle(service);
+                continue;
+            }
+        }
+
+        int name_len = WideCharToMultiByte(CP_ACP, 0, services[i].lpServiceName, -1, NULL, 0, NULL, NULL);
+        char* serviceNameBuf = new char[name_len];
+        WideCharToMultiByte(CP_ACP, 0, services[i].lpServiceName, -1, serviceNameBuf, name_len, NULL, NULL);
+
+        std::string serviceInfo = std::string(serviceNameBuf) + ",";
+
+        delete[] serviceNameBuf;
+
+        switch (services[i].ServiceStatus.dwCurrentState) {
+        case SERVICE_STOPPED:
+            serviceInfo += "Stopped,";
+            break;
+        case SERVICE_START_PENDING:
+            serviceInfo += "Start Pending,";
+            break;
+        case SERVICE_STOP_PENDING:
+            serviceInfo += "Stop Pending,";
+            break;
+        case SERVICE_RUNNING:
+            serviceInfo += "Running,";
+            break;
+        case SERVICE_CONTINUE_PENDING:
+            serviceInfo += "Continue Pending,";
+            break;
+        case SERVICE_PAUSE_PENDING:
+            serviceInfo += "Pause Pending,";
+            break;
+        case SERVICE_PAUSED:
+            serviceInfo += "Paused,";
+            break;
+        default:
+            serviceInfo += "Unknown,";
+            break;
+        }
+
+        if (serviceConfig != NULL) {
+            switch (serviceConfig->dwStartType) {
+            case SERVICE_BOOT_START:
+                serviceInfo += "Boot";
+                break;
+            case SERVICE_SYSTEM_START:
+                serviceInfo += "System";
+                break;
+            case SERVICE_AUTO_START:
+                serviceInfo += "Auto";
+                break;
+            case SERVICE_DEMAND_START:
+                serviceInfo += "Manual";
+                break;
+            case SERVICE_DISABLED:
+                serviceInfo += "Disabled";
+                break;
+            default:
+                serviceInfo += "Unknown";
+                break;
+            }
+
+            HeapFree(GetProcessHeap(), 0, serviceConfig);
+        }
+
+        // Allocate memory for each service info and copy it
+        size_t len = serviceInfo.length();
+        serviceInfos[i] = new char[len + 1];
+        strcpy_s(const_cast<char*>(serviceInfos[i]), len + 1, serviceInfo.c_str());
+
+        CloseServiceHandle(service);
+    }
+
+    CloseServiceHandle(scm);
+    HeapFree(GetProcessHeap(), 0, services);
+
+    // Return pointer to array of service infos
+    return serviceInfos;
+}
