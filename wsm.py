@@ -1,3 +1,4 @@
+from time import sleep
 import tkinter as tk
 from tkinter import ttk
 import ctypes
@@ -8,13 +9,30 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 dll_path = os.path.join(current_dir + "\\wsm_dll\\x64\\Debug\\", "wsm_dll.dll")
 wsm_dll = ctypes.CDLL(dll_path)
 
-wsm_dll.EnumerateServices.restype = ctypes.POINTER(ctypes.c_wchar_p)
 wsm_dll.GetServicesCount.restype = wintypes.DWORD
+wsm_dll.EnumerateServicesWithInfo.restype = ctypes.POINTER(ctypes.c_char_p)
 wsm_dll.GetServiceInfo.argtypes = [ctypes.c_char_p]
 wsm_dll.GetServiceInfo.restype = ctypes.c_char_p
-wsm_dll.EnumerateServicesWithInfo.restype = ctypes.POINTER(ctypes.c_char_p)
-wsm_dll.FindServiceByName.argtypes = [ctypes.c_char_p]
-wsm_dll.FindServiceByName.restype = ctypes.POINTER(ctypes.c_wchar_p)
+
+def wait_until_service_state(service_name, state):
+    current_state = wsm_dll.GetServiceInfo(service_name.encode('utf-8')).decode('utf-8').split(",")[0]
+    print(current_state)
+    
+    if current_state == state:
+        update_services_tree()
+        return
+    else:
+        if state == "Running":
+            if current_state == "Stopped":
+                update_services_tree()
+                status_label.config(text=f"Service '{service_name}' has stopped unexpectedly.")
+                return
+        elif state == "Stopped":
+            if current_state == "Running":
+                update_services_tree()
+                status_label.config(text=f"Service '{service_name}' has started unexpectedly.")
+                return
+        root.after(1000, wait_until_service_state, service_name, state)
 
 def get_services():
     services_ptr = wsm_dll.EnumerateServicesWithInfo()
@@ -34,6 +52,7 @@ def start_service():
         if result == 0:
             status_label.config(text=f"Service '{service_name}' started successfully.")
             update_services_tree()
+            wait_until_service_state(service_name, "Running")
         else:
             status_label.config(text=f"Failed to start service '{service_name}'.")
 
@@ -45,6 +64,7 @@ def stop_service():
         if result == 0:
             status_label.config(text=f"Service '{service_name}' stopped successfully.")
             update_services_tree()
+            wait_until_service_state(service_name, "Stopped")
         else:
             status_label.config(text=f"Failed to stop service '{service_name}'.")
 
@@ -56,6 +76,7 @@ def restart_service():
         if result == 0:
             status_label.config(text=f"Service '{service_name}' restarted successfully.")
             update_services_tree()
+            wait_until_service_state(service_name, "Running")
         else:
             status_label.config(text=f"Failed to restart service '{service_name}'.")
 
@@ -64,6 +85,7 @@ def pause_service():
     if selected_service:
         service_name = services_tree.item(selected_service, 'text')
         result = wsm_dll.PauseService(service_name.encode('utf-8'))
+        print(result)
         if result == 0:
             status_label.config(text=f"Service '{service_name}' paused successfully.")
             update_services_tree()

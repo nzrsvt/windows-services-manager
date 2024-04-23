@@ -110,37 +110,16 @@ extern "C" __declspec(dllexport) int StopService(const char* serviceName) {
 
 extern "C" __declspec(dllexport) int RestartService(const char* serviceName) {
     int stopResult = StopService(serviceName);
-    if (stopResult != 0) {
-        return stopResult; // Return the result of stopping the service
+    if (stopResult != 0 && stopResult != -3) {
+        return -1;
     }
 
-    SC_HANDLE scm = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-    if (scm == NULL) {
-        return -1; // Failed to open service control manager
+    int startResult = StartServiceC(serviceName);
+    if (startResult != 0) {
+        return -2;
     }
 
-    int len = MultiByteToWideChar(CP_ACP, 0, serviceName, -1, NULL, 0);
-    wchar_t* wideServiceName = new wchar_t[len];
-    MultiByteToWideChar(CP_ACP, 0, serviceName, -1, wideServiceName, len);
-
-    SC_HANDLE service = OpenService(scm, wideServiceName, SERVICE_START);
-
-    delete[] wideServiceName;
-
-    if (service == NULL) {
-        CloseServiceHandle(scm);
-        return -2; // Failed to open service
-    }
-
-    if (!StartService(service, 0, NULL)) {
-        CloseServiceHandle(service);
-        CloseServiceHandle(scm);
-        return -3; // Failed to start service
-    }
-
-    CloseServiceHandle(service);
-    CloseServiceHandle(scm);
-    return 0; // Service restarted successfully
+    return 0;
 }
 
 extern "C" __declspec(dllexport) int PauseService(const char* serviceName) {
