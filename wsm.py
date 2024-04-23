@@ -16,6 +16,12 @@ wsm_dll.GetServiceInfo.restype = ctypes.c_char_p
 wsm_dll.CanServiceBePaused.argtypes = [ctypes.c_char_p]
 wsm_dll.CanServiceBePaused.restype = ctypes.c_bool
 
+SERVICE_AUTO_START = 2
+SERVICE_BOOT_START = 0
+SERVICE_DEMAND_START = 3
+SERVICE_DISABLED = 4
+SERVICE_SYSTEM_START = 1
+
 def update_buttons_state(event=None):
     selected_service = services_tree.selection()
     if selected_service:
@@ -155,17 +161,13 @@ def continue_service():
         else:
             status_label.config(text=f"Failed to resume service '{service_name}'.")
 
-def change_start_type():
-    selected_service = services_tree.selection()
-    if selected_service:
-        service_name = services_tree.item(selected_service, 'text')
-        start_type = SERVICE_AUTO_START 
-        result = wsm_dll.ChangeStartType(service_name.encode('utf-8'), start_type)
-        if result == 0:
-            status_label.config(text=f"Start type of service '{service_name}' changed successfully.")
-            update_services_tree()
-        else:
-            status_label.config(text=f"Failed to change start type of service '{service_name}'.")
+def change_start_type(service_name, start_type):
+    result = wsm_dll.ChangeStartType(service_name.encode('utf-8'), start_type)
+    if result == 0:
+        status_label.config(text=f"Start type of service '{service_name}' changed successfully.")
+        update_services_tree()
+    else:
+        status_label.config(text=f"Failed to change start type of service '{service_name}'.")
 
 def update_services_tree(services=None):
     if services_tree.get_children():
@@ -184,6 +186,45 @@ def update_services_tree(services=None):
     
     update_buttons_state()
 
+def on_change_start_type_button_click():
+    selected_service = services_tree.selection()
+    if selected_service:
+        service_name = services_tree.item(selected_service, 'text')
+        new_start_type = show_start_type_selection_dialog(service_name)
+        if new_start_type is not None:
+            change_start_type(service_name, new_start_type)
+
+def show_start_type_selection_dialog(service_name):
+    dialog = tk.Toplevel(root)
+    dialog.title("Select Start Type")
+
+    current_start_type = wsm_dll.GetServiceInfo(service_name.encode('utf-8')).decode('utf-8').split(",")[1]
+
+    print(current_start_type)
+
+    start_type_mapping = {
+        "Boot": SERVICE_BOOT_START,
+        "System": SERVICE_SYSTEM_START,
+        "Auto": SERVICE_AUTO_START,
+        "Manual": SERVICE_DEMAND_START,
+        "Disabled": SERVICE_DISABLED,
+        "Unknown": 0 
+    }
+
+    selected_start_type = tk.IntVar(value=start_type_mapping.get(current_start_type, 0))  
+
+    ttk.Radiobutton(dialog, text="Auto Start", variable=selected_start_type, value=SERVICE_AUTO_START).pack(anchor=tk.W)
+    ttk.Radiobutton(dialog, text="Boot Start", variable=selected_start_type, value=SERVICE_BOOT_START).pack(anchor=tk.W)
+    ttk.Radiobutton(dialog, text="Manual Start", variable=selected_start_type, value=SERVICE_DEMAND_START).pack(anchor=tk.W)
+    ttk.Radiobutton(dialog, text="Disabled", variable=selected_start_type, value=SERVICE_DISABLED).pack(anchor=tk.W)
+    ttk.Radiobutton(dialog, text="System Start", variable=selected_start_type, value=SERVICE_SYSTEM_START).pack(anchor=tk.W)
+
+    confirm_button = ttk.Button(dialog, text="Confirm", command=lambda: dialog.destroy())
+    confirm_button.pack()
+
+    dialog.wait_window()
+
+    return selected_start_type.get()
 
 root = tk.Tk()
 root.title("Windows Services Manager")
@@ -218,7 +259,7 @@ pause_button.grid(row=0, column=3, padx=5, pady=5)
 continue_button = ttk.Button(operations_frame, text="Continue Service", command=continue_service)
 continue_button.grid(row=0, column=4, padx=5, pady=5)
 
-change_start_type_button = ttk.Button(operations_frame, text="Change Start Type", command=change_start_type)
+change_start_type_button = ttk.Button(operations_frame, text="Change Start Type", command=on_change_start_type_button_click)
 change_start_type_button.grid(row=0, column=5, padx=5, pady=5)
 
 services_frame = ttk.Frame(root)
@@ -233,8 +274,6 @@ services_tree.pack(fill='both', expand=True)
 services_tree.bind('<<TreeviewSelect>>', update_buttons_state)
 
 update_services_tree()
-
-
 
 status_label = ttk.Label(root, text="")
 status_label.pack()
