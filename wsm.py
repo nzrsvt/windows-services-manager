@@ -46,7 +46,7 @@ def update_buttons_state(event=None):
             start_button.config(state=tk.DISABLED)
             stop_button.config(state=tk.NORMAL)
             restart_button.config(state=tk.NORMAL)
-            pause_button.config(state=tk.NORMAL)
+            pause_button.config(state=tk.NORMAL if wsm_dll.CanServiceBePaused(service_name.encode("utf-8")) else tk.DISABLED)
             continue_button.config(state=tk.DISABLED)
             change_start_type_button.config(state=tk.NORMAL)
         elif current_state == "Paused":
