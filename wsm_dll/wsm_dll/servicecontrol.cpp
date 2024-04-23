@@ -110,13 +110,11 @@ extern "C" __declspec(dllexport) int StopService(const char* serviceName) {
 
 extern "C" __declspec(dllexport) int RestartService(const char* serviceName) {
     int stopResult = StopService(serviceName);
-    std::cout << stopResult;
     if (stopResult != 0 && stopResult != -3) {
         return -1;
     }
 
     int startResult = StartServiceC(serviceName);
-    std::cout << startResult;
     if (startResult != 0) {
         return -2;
     }

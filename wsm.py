@@ -4,6 +4,7 @@ from tkinter import ttk
 import ctypes
 from ctypes import wintypes
 import os
+from PIL import Image, ImageTk
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 dll_path = os.path.join(current_dir + "\\wsm_dll\\x64\\Debug\\", "wsm_dll.dll")
@@ -21,6 +22,12 @@ SERVICE_BOOT_START = 0
 SERVICE_DEMAND_START = 3
 SERVICE_DISABLED = 4
 SERVICE_SYSTEM_START = 1
+
+start_image = Image.open("icons/start_icon.png").resize((32, 32), Image.LANCZOS)
+stop_image = Image.open("icons/stop_icon.png").resize((32, 32), Image.LANCZOS)
+restart_image = Image.open("icons/restart_icon.png").resize((32, 32), Image.LANCZOS)
+pause_image = Image.open("icons/pause_icon.png").resize((32, 32), Image.LANCZOS)
+continue_image = Image.open("icons/continue_icon.png").resize((32, 32), Image.LANCZOS)
 
 def update_buttons_state(event=None):
     selected_service = services_tree.selection()
@@ -73,8 +80,7 @@ def update_buttons_state(event=None):
 
 def wait_until_service_state(service_name, state):
     current_state = wsm_dll.GetServiceInfo(service_name.encode('utf-8')).decode('utf-8').split(",")[0]
-    print(current_state)
-    
+
     if current_state == state:
         update_services_tree()
         return
@@ -132,18 +138,16 @@ def restart_service():
         result = wsm_dll.RestartService(service_name.encode('utf-8'))
         if result == 0:
             status_label.config(text=f"Service '{service_name}' restarted successfully.")
-            update_services_tree()
             wait_until_service_state(service_name, "Running")
         else:
             status_label.config(text=f"Failed to restart service '{service_name}'.")
+        update_services_tree()
 
 def pause_service():
     selected_service = services_tree.selection()
     if selected_service:
         service_name = services_tree.item(selected_service, 'text')
-        print(wsm_dll.CanServiceBePaused(service_name.encode('utf-8')))
         result = wsm_dll.PauseService(service_name.encode('utf-8'))
-        print(result)
         if result == 0:
             status_label.config(text=f"Service '{service_name}' paused successfully.")
             update_services_tree()
@@ -200,8 +204,6 @@ def show_start_type_selection_dialog(service_name):
 
     current_start_type = wsm_dll.GetServiceInfo(service_name.encode('utf-8')).decode('utf-8').split(",")[1]
 
-    print(current_start_type)
-
     start_type_mapping = {
         "Boot": SERVICE_BOOT_START,
         "System": SERVICE_SYSTEM_START,
@@ -230,7 +232,7 @@ root = tk.Tk()
 root.title("Windows Services Manager")
 
 search_frame = ttk.Frame(root)
-search_frame.pack(fill='x')
+search_frame.grid(row=0, column=0, sticky="ew")
 
 search_label = ttk.Label(search_frame, text="Search Service:")
 search_label.grid(row=0, column=0, padx=5, pady=5)
@@ -242,28 +244,34 @@ search_button = ttk.Button(search_frame, text="Search", command=update_services_
 search_button.grid(row=0, column=2, padx=5, pady=5)
 
 operations_frame = ttk.Frame(root)
-operations_frame.pack()
+operations_frame.grid(row=1, column=0, sticky="ew")
 
-start_button = ttk.Button(operations_frame, text="Start Service", command=start_service)
+start_icon = ImageTk.PhotoImage(start_image)
+stop_icon = ImageTk.PhotoImage(stop_image)
+restart_icon = ImageTk.PhotoImage(restart_image)
+pause_icon = ImageTk.PhotoImage(pause_image)
+continue_icon = ImageTk.PhotoImage(continue_image)
+
+start_button = ttk.Button(operations_frame, image=start_icon, command=start_service)
 start_button.grid(row=0, column=0, padx=5, pady=5)
 
-stop_button = ttk.Button(operations_frame, text="Stop Service", command=stop_service)
+stop_button = ttk.Button(operations_frame, image=stop_icon, command=stop_service)
 stop_button.grid(row=0, column=1, padx=5, pady=5)
 
-restart_button = ttk.Button(operations_frame, text="Restart Service", command=restart_service)
+restart_button = ttk.Button(operations_frame, image=restart_icon, command=restart_service)
 restart_button.grid(row=0, column=2, padx=5, pady=5)
 
-pause_button = ttk.Button(operations_frame, text="Pause Service", command=pause_service)
+pause_button = ttk.Button(operations_frame, image=pause_icon, command=pause_service)
 pause_button.grid(row=0, column=3, padx=5, pady=5)
 
-continue_button = ttk.Button(operations_frame, text="Continue Service", command=continue_service)
+continue_button = ttk.Button(operations_frame, image=continue_icon, command=continue_service)
 continue_button.grid(row=0, column=4, padx=5, pady=5)
 
 change_start_type_button = ttk.Button(operations_frame, text="Change Start Type", command=on_change_start_type_button_click)
 change_start_type_button.grid(row=0, column=5, padx=5, pady=5)
 
 services_frame = ttk.Frame(root)
-services_frame.pack(fill='both', expand=True)
+services_frame.grid(row=2, column=0, sticky="nsew")
 
 services_tree = ttk.Treeview(services_frame, columns=('Service Name', 'Service State', 'Service Start Type'), show='headings')
 services_tree.heading('Service Name', text='Service Name')
@@ -275,7 +283,7 @@ services_tree.bind('<<TreeviewSelect>>', update_buttons_state)
 
 update_services_tree()
 
-status_label = ttk.Label(root, text="")
-status_label.pack()
+status_label = ttk.Label(root, text="", anchor='center')
+status_label.grid(row=3, column=0, sticky="ew", padx=5, pady=5)
 
 root.mainloop()
