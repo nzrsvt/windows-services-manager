@@ -110,11 +110,13 @@ extern "C" __declspec(dllexport) int StopService(const char* serviceName) {
 
 extern "C" __declspec(dllexport) int RestartService(const char* serviceName) {
     int stopResult = StopService(serviceName);
+    std::cout << stopResult;
     if (stopResult != 0 && stopResult != -3) {
         return -1;
     }
 
     int startResult = StartServiceC(serviceName);
+    std::cout << startResult;
     if (startResult != 0) {
         return -2;
     }
@@ -474,4 +476,45 @@ extern "C" __declspec(dllexport) const char** EnumerateServicesWithInfo() {
 
     // Return pointer to array of service infos
     return serviceInfos;
+}
+
+extern "C" __declspec(dllexport) BOOL CanServiceBePaused(const char* serviceName) {
+    SC_HANDLE scm = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
+    if (scm == NULL) {
+        std::cerr << "Failed to open service control manager." << std::endl;
+        return FALSE;
+    }
+
+    int len = MultiByteToWideChar(CP_ACP, 0, serviceName, -1, NULL, 0);
+    wchar_t* wideServiceName = new wchar_t[len];
+    MultiByteToWideChar(CP_ACP, 0, serviceName, -1, wideServiceName, len);
+
+    SC_HANDLE service = OpenService(scm, wideServiceName, SERVICE_QUERY_STATUS);
+
+    delete[] wideServiceName;
+
+    if (service == NULL) {
+        std::cerr << "Failed to open service." << std::endl;
+        CloseServiceHandle(scm);
+        return FALSE;
+    }
+
+    SERVICE_STATUS_PROCESS statusProcess;
+    DWORD bytesNeeded;
+    BOOL success = QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&statusProcess, sizeof(SERVICE_STATUS_PROCESS), &bytesNeeded);
+
+    if (!success) {
+        std::cerr << "Failed to query service status." << std::endl;
+    }
+    else {
+        DWORD controlsAccepted = statusProcess.dwControlsAccepted;
+        BOOL canBePaused = (controlsAccepted & SERVICE_ACCEPT_PAUSE_CONTINUE) != 0;
+        CloseServiceHandle(service);
+        CloseServiceHandle(scm);
+        return canBePaused;
+    }
+
+    CloseServiceHandle(service);
+    CloseServiceHandle(scm);
+    return FALSE;
 }

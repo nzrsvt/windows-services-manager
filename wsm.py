@@ -13,6 +13,57 @@ wsm_dll.GetServicesCount.restype = wintypes.DWORD
 wsm_dll.EnumerateServicesWithInfo.restype = ctypes.POINTER(ctypes.c_char_p)
 wsm_dll.GetServiceInfo.argtypes = [ctypes.c_char_p]
 wsm_dll.GetServiceInfo.restype = ctypes.c_char_p
+wsm_dll.CanServiceBePaused.argtypes = [ctypes.c_char_p]
+wsm_dll.CanServiceBePaused.restype = ctypes.c_bool
+
+def update_buttons_state(event=None):
+    selected_service = services_tree.selection()
+    if selected_service:
+        service_name = services_tree.item(selected_service, 'text')
+        current_state = wsm_dll.GetServiceInfo(service_name.encode('utf-8')).decode('utf-8').split(",")[0]
+
+        if current_state == "Stopped":
+            start_button.config(state=tk.NORMAL)
+            stop_button.config(state=tk.DISABLED)
+            restart_button.config(state=tk.DISABLED)
+            pause_button.config(state=tk.DISABLED)
+            continue_button.config(state=tk.DISABLED)
+            change_start_type_button.config(state=tk.NORMAL)
+        elif current_state == "Running":
+            start_button.config(state=tk.DISABLED)
+            stop_button.config(state=tk.NORMAL)
+            restart_button.config(state=tk.NORMAL)
+            pause_button.config(state=tk.NORMAL)
+            continue_button.config(state=tk.DISABLED)
+            change_start_type_button.config(state=tk.NORMAL)
+        elif current_state == "Paused":
+            start_button.config(state=tk.DISABLED)
+            stop_button.config(state=tk.DISABLED)
+            restart_button.config(state=tk.DISABLED)
+            pause_button.config(state=tk.DISABLED)
+            continue_button.config(state=tk.NORMAL)
+            change_start_type_button.config(state=tk.NORMAL)
+        elif current_state in ["Start Pending", "Stop Pending", "Continue Pending", "Pause Pending"]:
+            start_button.config(state=tk.DISABLED)
+            stop_button.config(state=tk.DISABLED)
+            restart_button.config(state=tk.DISABLED)
+            pause_button.config(state=tk.DISABLED)
+            continue_button.config(state=tk.DISABLED)
+            change_start_type_button.config(state=tk.NORMAL)
+        else: 
+            start_button.config(state=tk.DISABLED)
+            stop_button.config(state=tk.DISABLED)
+            restart_button.config(state=tk.DISABLED)
+            pause_button.config(state=tk.DISABLED)
+            continue_button.config(state=tk.DISABLED)
+            change_start_type_button.config(state=tk.DISABLED)
+    else:
+        start_button.config(state=tk.DISABLED)
+        stop_button.config(state=tk.DISABLED)
+        restart_button.config(state=tk.DISABLED)
+        pause_button.config(state=tk.DISABLED)
+        continue_button.config(state=tk.DISABLED)
+        change_start_type_button.config(state=tk.DISABLED)
 
 def wait_until_service_state(service_name, state):
     current_state = wsm_dll.GetServiceInfo(service_name.encode('utf-8')).decode('utf-8').split(",")[0]
@@ -84,6 +135,7 @@ def pause_service():
     selected_service = services_tree.selection()
     if selected_service:
         service_name = services_tree.item(selected_service, 'text')
+        print(wsm_dll.CanServiceBePaused(service_name.encode('utf-8')))
         result = wsm_dll.PauseService(service_name.encode('utf-8'))
         print(result)
         if result == 0:
@@ -129,6 +181,8 @@ def update_services_tree(services=None):
     for service in services:
         service_name, service_state, service_start_type = service.split(',')
         services_tree.insert('', 'end', text=service_name, values=(service_name, service_state, service_start_type))
+    
+    update_buttons_state()
 
 
 root = tk.Tk()
@@ -145,17 +199,6 @@ search_entry.grid(row=0, column=1, padx=5, pady=5)
 
 search_button = ttk.Button(search_frame, text="Search", command=update_services_tree)
 search_button.grid(row=0, column=2, padx=5, pady=5)
-
-services_frame = ttk.Frame(root)
-services_frame.pack(fill='both', expand=True)
-
-services_tree = ttk.Treeview(services_frame, columns=('Service Name', 'Service State', 'Service Start Type'), show='headings')
-services_tree.heading('Service Name', text='Service Name')
-services_tree.heading('Service State', text='Service State')
-services_tree.heading('Service Start Type', text='Service Start Type')
-services_tree.pack(fill='both', expand=True)
-
-update_services_tree()
 
 operations_frame = ttk.Frame(root)
 operations_frame.pack()
@@ -177,6 +220,21 @@ continue_button.grid(row=0, column=4, padx=5, pady=5)
 
 change_start_type_button = ttk.Button(operations_frame, text="Change Start Type", command=change_start_type)
 change_start_type_button.grid(row=0, column=5, padx=5, pady=5)
+
+services_frame = ttk.Frame(root)
+services_frame.pack(fill='both', expand=True)
+
+services_tree = ttk.Treeview(services_frame, columns=('Service Name', 'Service State', 'Service Start Type'), show='headings')
+services_tree.heading('Service Name', text='Service Name')
+services_tree.heading('Service State', text='Service State')
+services_tree.heading('Service Start Type', text='Service Start Type')
+services_tree.pack(fill='both', expand=True)
+
+services_tree.bind('<<TreeviewSelect>>', update_buttons_state)
+
+update_services_tree()
+
+
 
 status_label = ttk.Label(root, text="")
 status_label.pack()

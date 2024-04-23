@@ -12,3 +12,4 @@ extern "C" __declspec(dllexport) int ChangeStartType(const char* serviceName, DW
 extern "C" __declspec(dllexport) const char* GetServiceInfo(const char* serviceName);
 extern "C" __declspec(dllexport) DWORD GetServicesCount();
 extern "C" __declspec(dllexport) const char** EnumerateServicesWithInfo();
+extern "C" __declspec(dllexport) BOOL CanServiceBePaused(const char* serviceName);
