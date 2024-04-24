@@ -33,11 +33,13 @@ start_type_mapping = {
     "Unknown": 0 
 }
 
+search_image = Image.open("icons/search_icon.png").resize((32, 32), Image.LANCZOS)
 start_image = Image.open("icons/start_icon.png").resize((32, 32), Image.LANCZOS)
 stop_image = Image.open("icons/stop_icon.png").resize((32, 32), Image.LANCZOS)
 restart_image = Image.open("icons/restart_icon.png").resize((32, 32), Image.LANCZOS)
 pause_image = Image.open("icons/pause_icon.png").resize((32, 32), Image.LANCZOS)
 continue_image = Image.open("icons/continue_icon.png").resize((32, 32), Image.LANCZOS)
+change_start_type_image = Image.open("icons/change_start_type_icon.png").resize((32, 32), Image.LANCZOS)
 
 def update_buttons_state(event=None):
     selected_service = services_tree.selection()
@@ -191,7 +193,7 @@ def update_services_tree(services=None):
     services = get_services()
 
     search_string = search_entry.get()
-    if search_string:
+    if search_string != "Filter by name...":
         services = [service for service in services if search_string.lower() in service.split(',')[0].lower()]
 
     for service in services:
@@ -231,26 +233,15 @@ def show_start_type_selection_dialog(current_start_type):
 root = tk.Tk()
 root.title("Windows Services Manager")
 
-search_frame = ttk.Frame(root)
-search_frame.grid(row=0, column=0, sticky="ew")
-
-search_label = ttk.Label(search_frame, text="Search Service:")
-search_label.grid(row=0, column=0, padx=5, pady=5)
-
-search_entry = ttk.Entry(search_frame, width=30)
-search_entry.grid(row=0, column=1, padx=5, pady=5)
-
-search_button = ttk.Button(search_frame, text="Search", command=update_services_tree)
-search_button.grid(row=0, column=2, padx=5, pady=5)
-
 operations_frame = ttk.Frame(root)
-operations_frame.grid(row=1, column=0, sticky="ew")
+operations_frame.grid(row=0, column=0)
 
 start_icon = ImageTk.PhotoImage(start_image)
 stop_icon = ImageTk.PhotoImage(stop_image)
 restart_icon = ImageTk.PhotoImage(restart_image)
 pause_icon = ImageTk.PhotoImage(pause_image)
 continue_icon = ImageTk.PhotoImage(continue_image)
+change_start_type_icon = ImageTk.PhotoImage(change_start_type_image)
 
 start_button = ttk.Button(operations_frame, image=start_icon, command=start_service)
 start_button.grid(row=0, column=0, padx=5, pady=5)
@@ -272,16 +263,56 @@ continue_button = ttk.Button(operations_frame, image=continue_icon, command=cont
 continue_button.grid(row=0, column=4, padx=5, pady=5)
 continue_tip = Hovertip(continue_button,'Continue Service', hover_delay=500)
 
-change_start_type_button = ttk.Button(operations_frame, text="Change Start Type", command=on_change_start_type_button_click)
+change_start_type_button = ttk.Button(operations_frame, image=change_start_type_icon, command=on_change_start_type_button_click)
 change_start_type_button.grid(row=0, column=5, padx=5, pady=5)
+change_start_type_tip = Hovertip(change_start_type_button,'Change Start Type', hover_delay=500)
+
+def on_search_entry_click(event):
+    if search_entry.get() == "Filter by name...":
+        search_entry.delete(0, "end")
+        search_entry.insert(0, '')
+        search_entry.config(foreground = 'black')
+
+def on_search_focusout(event):
+    if search_entry.get() == '':
+        search_entry.insert(0, 'Filter by name...')
+        search_entry.config(foreground = 'grey')
+
+search_entry = ttk.Entry(operations_frame, width=30)
+search_entry.grid(row=0, column=6, padx=5, pady=5)
+search_entry.insert(0, 'Filter by name...')
+search_entry.config(foreground = 'grey')
+search_entry.bind('<FocusIn>', on_search_entry_click)
+search_entry.bind('<FocusOut>', on_search_focusout)
+
+search_icon = ImageTk.PhotoImage(search_image)
+
+search_button = ttk.Button(operations_frame, image=search_icon, command=update_services_tree)
+search_button.grid(row=0, column=7, padx=5, pady=5)
+search_tip = Hovertip(search_button,'Search Service', hover_delay=500)
 
 services_frame = ttk.Frame(root)
-services_frame.grid(row=2, column=0, sticky="nsew")
+services_frame.grid(row=1, column=0, sticky="nsew", padx=10)
 
-services_tree = ttk.Treeview(services_frame, columns=('Service Name', 'Service State', 'Service Start Type'), show='headings')
-services_tree.heading('Service Name', text='Service Name')
-services_tree.heading('Service State', text='Service State')
-services_tree.heading('Service Start Type', text='Service Start Type')
+services_tree_scrollbar = tk.Scrollbar(services_frame)
+services_tree_scrollbar.pack(side="right", fill="y")
+
+services_tree = ttk.Treeview(services_frame, columns=('Service Name', 'Service State', 'Service Start Type'), show='headings', yscrollcommand=services_tree_scrollbar.set)
+
+services_tree_scrollbar.config(command=services_tree.yview)
+
+def sort_treeview_column(tv, col, reverse):
+    data = [(tv.set(child, col), child) for child in tv.get_children('')]
+    data.sort(reverse=reverse)
+
+    for index, (val, child) in enumerate(data):
+        tv.move(child, '', index)
+
+    tv.heading(col, command=lambda: sort_treeview_column(tv, col, not reverse))
+
+services_tree.heading('Service Name', text='Service Name', command=lambda: sort_treeview_column(services_tree, 'Service Name', False))
+services_tree.heading('Service State', text='Service State', command=lambda: sort_treeview_column(services_tree, 'Service State', False))
+services_tree.heading('Service Start Type', text='Service Start Type', command=lambda: sort_treeview_column(services_tree, 'Service Start Type', False))
 services_tree.pack(fill='both', expand=True)
 
 services_tree.bind('<<TreeviewSelect>>', update_buttons_state)
@@ -289,6 +320,6 @@ services_tree.bind('<<TreeviewSelect>>', update_buttons_state)
 update_services_tree()
 
 status_label = ttk.Label(root, text="", anchor='center')
-status_label.grid(row=3, column=0, sticky="ew", padx=5, pady=5)
+status_label.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
 
 root.mainloop()
