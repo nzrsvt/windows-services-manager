@@ -7,6 +7,8 @@ import os
 from PIL import Image, ImageTk
 from idlelib.tooltip import Hovertip
 
+import sv_ttk
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 dll_path = os.path.join(current_dir + "\\wsm_dll\\x64\\Debug\\", "wsm_dll.dll")
 wsm_dll = ctypes.CDLL(dll_path)
@@ -232,6 +234,8 @@ def show_start_type_selection_dialog(current_start_type):
 
 root = tk.Tk()
 root.title("Windows Services Manager")
+
+sv_ttk.set_theme("light")
 
 operations_frame = ttk.Frame(root)
 operations_frame.grid(row=0, column=0)
