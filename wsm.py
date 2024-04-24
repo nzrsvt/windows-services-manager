@@ -5,6 +5,7 @@ import ctypes
 from ctypes import wintypes
 import os
 from PIL import Image, ImageTk
+from idlelib.tooltip import Hovertip
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 dll_path = os.path.join(current_dir + "\\wsm_dll\\x64\\Debug\\", "wsm_dll.dll")
@@ -22,6 +23,15 @@ SERVICE_BOOT_START = 0
 SERVICE_DEMAND_START = 3
 SERVICE_DISABLED = 4
 SERVICE_SYSTEM_START = 1
+
+start_type_mapping = {
+    "Boot": SERVICE_BOOT_START,
+    "System": SERVICE_SYSTEM_START,
+    "Auto": SERVICE_AUTO_START,
+    "Manual": SERVICE_DEMAND_START,
+    "Disabled": SERVICE_DISABLED,
+    "Unknown": 0 
+}
 
 start_image = Image.open("icons/start_icon.png").resize((32, 32), Image.LANCZOS)
 stop_image = Image.open("icons/stop_icon.png").resize((32, 32), Image.LANCZOS)
@@ -194,24 +204,14 @@ def on_change_start_type_button_click():
     selected_service = services_tree.selection()
     if selected_service:
         service_name = services_tree.item(selected_service, 'text')
-        new_start_type = show_start_type_selection_dialog(service_name)
-        if new_start_type is not None:
+        current_start_type = wsm_dll.GetServiceInfo(service_name.encode('utf-8')).decode('utf-8').split(",")[1]
+        new_start_type = show_start_type_selection_dialog(current_start_type)
+        if new_start_type is not None and new_start_type != start_type_mapping.get(current_start_type, 0):
             change_start_type(service_name, new_start_type)
 
-def show_start_type_selection_dialog(service_name):
+def show_start_type_selection_dialog(current_start_type):
     dialog = tk.Toplevel(root)
     dialog.title("Select Start Type")
-
-    current_start_type = wsm_dll.GetServiceInfo(service_name.encode('utf-8')).decode('utf-8').split(",")[1]
-
-    start_type_mapping = {
-        "Boot": SERVICE_BOOT_START,
-        "System": SERVICE_SYSTEM_START,
-        "Auto": SERVICE_AUTO_START,
-        "Manual": SERVICE_DEMAND_START,
-        "Disabled": SERVICE_DISABLED,
-        "Unknown": 0 
-    }
 
     selected_start_type = tk.IntVar(value=start_type_mapping.get(current_start_type, 0))  
 
@@ -254,18 +254,23 @@ continue_icon = ImageTk.PhotoImage(continue_image)
 
 start_button = ttk.Button(operations_frame, image=start_icon, command=start_service)
 start_button.grid(row=0, column=0, padx=5, pady=5)
+start_tip = Hovertip(start_button,'Start Service', hover_delay=500)
 
 stop_button = ttk.Button(operations_frame, image=stop_icon, command=stop_service)
 stop_button.grid(row=0, column=1, padx=5, pady=5)
+stop_tip = Hovertip(stop_button,'Stop Service', hover_delay=500)
 
 restart_button = ttk.Button(operations_frame, image=restart_icon, command=restart_service)
 restart_button.grid(row=0, column=2, padx=5, pady=5)
+restart_tip = Hovertip(restart_button,'Restart Service', hover_delay=500)
 
 pause_button = ttk.Button(operations_frame, image=pause_icon, command=pause_service)
 pause_button.grid(row=0, column=3, padx=5, pady=5)
+pause_tip = Hovertip(pause_button,'Pause Service', hover_delay=500)
 
 continue_button = ttk.Button(operations_frame, image=continue_icon, command=continue_service)
 continue_button.grid(row=0, column=4, padx=5, pady=5)
+continue_tip = Hovertip(continue_button,'Continue Service', hover_delay=500)
 
 change_start_type_button = ttk.Button(operations_frame, text="Change Start Type", command=on_change_start_type_button_click)
 change_start_type_button.grid(row=0, column=5, padx=5, pady=5)
