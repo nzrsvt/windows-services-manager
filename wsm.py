@@ -209,13 +209,19 @@ def on_change_start_type_button_click():
     if selected_service:
         service_name = services_tree.item(selected_service, 'text')
         current_start_type = wsm_dll.GetServiceInfo(service_name.encode('utf-8')).decode('utf-8').split(",")[1]
-        new_start_type = show_start_type_selection_dialog(current_start_type)
-        if new_start_type is not None and new_start_type != start_type_mapping.get(current_start_type, 0):
+        show_start_type_selection_dialog(service_name, current_start_type)
+
+def show_start_type_selection_dialog(service_name, current_start_type):
+    def confirm_and_change_start_type():
+        new_start_type = selected_start_type.get()
+        dialog.destroy()
+        if new_start_type != start_type_mapping.get(current_start_type, 0):
             change_start_type(service_name, new_start_type)
 
-def show_start_type_selection_dialog(current_start_type):
     dialog = tk.Toplevel(root)
     dialog.title("Select Start Type")
+
+    tk.Label(dialog, text="Choose new start type: ").pack()
 
     selected_start_type = tk.IntVar(value=start_type_mapping.get(current_start_type, 0))  
 
@@ -225,7 +231,7 @@ def show_start_type_selection_dialog(current_start_type):
     ttk.Radiobutton(dialog, text="Disabled", variable=selected_start_type, value=SERVICE_DISABLED).pack(anchor=tk.W)
     ttk.Radiobutton(dialog, text="System Start", variable=selected_start_type, value=SERVICE_SYSTEM_START).pack(anchor=tk.W)
 
-    confirm_button = ttk.Button(dialog, text="Confirm", command=lambda: dialog.destroy())
+    confirm_button = ttk.Button(dialog, text="Confirm", command=confirm_and_change_start_type)
     confirm_button.pack()
 
     dialog.wait_window()
@@ -296,7 +302,7 @@ search_button.grid(row=0, column=7, padx=5, pady=5)
 search_tip = Hovertip(search_button,'Search Service', hover_delay=500)
 
 services_frame = ttk.Frame(root)
-services_frame.grid(row=1, column=0, sticky="nsew", padx=10)
+services_frame.grid(row=1, column=0, sticky="nsew", padx=5)
 
 services_tree_scrollbar = tk.Scrollbar(services_frame)
 services_tree_scrollbar.pack(side="right", fill="y")
