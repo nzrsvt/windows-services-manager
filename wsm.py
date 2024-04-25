@@ -153,9 +153,12 @@ def restart_service():
         if result == 0:
             status_label.config(text=f"Service '{service_name}' restarted successfully.")
             wait_until_service_state(service_name, "Running")
-        else:
+        elif result == 0:
             status_label.config(text=f"Failed to restart service '{service_name}'.")
-        update_services_tree()
+            update_services_tree()
+        elif result == -2:
+            status_label.config(text=f"Failed to restart service '{service_name}'.")
+            wait_until_service_state(service_name, "Stopped")
 
 def pause_service():
     selected_service = services_tree.selection()
@@ -188,6 +191,13 @@ def change_start_type(service_name, start_type):
         status_label.config(text=f"Failed to change start type of service '{service_name}'.")
 
 def update_services_tree(services=None):
+    selected_service_name = None
+    selected_service = services_tree.selection()
+    if selected_service:
+        selected_service_name = services_tree.item(selected_service, 'text')
+
+    print(selected_service)
+
     if services_tree.get_children():
         for item in services_tree.get_children():
             services_tree.delete(item)
@@ -202,6 +212,13 @@ def update_services_tree(services=None):
         service_name, service_state, service_start_type = service.split(',')
         services_tree.insert('', 'end', text=service_name, values=(service_name, service_state, service_start_type))
     
+    if selected_service_name:
+        for item in services_tree.get_children():
+            if services_tree.item(item, 'text') == selected_service_name:
+                services_tree.selection_set(item)
+                services_tree.focus(item)
+                break
+
     update_buttons_state()
 
 def on_change_start_type_button_click():
