@@ -45,6 +45,9 @@ pause_image = Image.open("icons/pause_icon.png").resize((32, 32), Image.LANCZOS)
 continue_image = Image.open("icons/continue_icon.png").resize((32, 32), Image.LANCZOS)
 change_start_type_image = Image.open("icons/change_start_type_icon.png").resize((32, 32), Image.LANCZOS)
 
+current_sort_column = None
+current_sort_reverse = False
+
 def update_buttons_state(event=None):
     selected_service = services_tree.selection()
     if selected_service:
@@ -222,6 +225,9 @@ def update_services_tree(services=None):
                 services_tree.focus(item)
                 break
 
+    if current_sort_column is not None and services_tree.get_children():
+        sort_treeview_column(services_tree, current_sort_column, current_sort_reverse)
+
     update_buttons_state()
 
 def on_change_start_type_button_click():
@@ -332,6 +338,10 @@ services_tree = ttk.Treeview(services_frame, columns=('Service Name', 'Service S
 services_tree_scrollbar.config(command=services_tree.yview)
 
 def sort_treeview_column(tv, col, reverse):
+    global current_sort_column, current_sort_reverse
+    current_sort_column = col
+    current_sort_reverse = reverse
+
     data = [(tv.set(child, col), child) for child in tv.get_children('')]
     data.sort(reverse=reverse)
 
