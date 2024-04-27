@@ -117,6 +117,13 @@ def wait_until_service_state(service_name, state):
                 update_services_tree()
                 status_label.config(text=f"Service '{service_name}' has started unexpectedly.")
                 return
+        elif state == "Stopped(Restart)":
+            if current_state == "Stopped":
+                update_services_tree()
+                start_service()
+                update_services_tree()
+                status_label.config(text=f"Service '{service_name}' has restarted successfully.")
+                return
         root.after(1000, wait_until_service_state, service_name, state)
 
 def get_services():
@@ -157,16 +164,8 @@ def restart_service():
     selected_service = services_tree.selection()
     if selected_service:
         service_name = services_tree.item(selected_service, 'text')
-        result = wsm_dll.RestartService(service_name.encode('utf-8'))
-        if result == 0:
-            status_label.config(text=f"Service '{service_name}' restarted successfully.")
-            wait_until_service_state(service_name, "Running")
-        elif result == 0:
-            status_label.config(text=f"Failed to restart service '{service_name}'.")
-            update_services_tree()
-        elif result == -2:
-            status_label.config(text=f"Failed to restart service '{service_name}'.")
-            wait_until_service_state(service_name, "Stopped")
+        stop_service()
+        wait_until_service_state(service_name, "Stopped(Restart)")
 
 def pause_service():
     selected_service = services_tree.selection()

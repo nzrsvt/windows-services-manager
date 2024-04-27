@@ -4,7 +4,6 @@
 
 extern "C" __declspec(dllexport) int StartServiceC(const char* serviceName);
 extern "C" __declspec(dllexport) int StopService(const char* serviceName);
-extern "C" __declspec(dllexport) int RestartService(const char* serviceName);
 extern "C" __declspec(dllexport) int PauseService(const char* serviceName);
 extern "C" __declspec(dllexport) int ContinueService(const char* serviceName);
 extern "C" __declspec(dllexport) int ChangeStartType(const char* serviceName, DWORD startType);

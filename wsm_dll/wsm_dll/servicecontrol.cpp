@@ -134,20 +134,6 @@ extern "C" __declspec(dllexport) int StopService(const char* serviceName) {
     return PerformServiceControl(serviceName, SC_MANAGER_ALL_ACCESS, SERVICE_STOP, SERVICE_CONTROL_STOP);
 }
 
-extern "C" __declspec(dllexport) int RestartService(const char* serviceName) {
-    int stopResult = StopService(serviceName);
-    if (stopResult != 0) {
-        return -1;
-    }
-
-    int startResult = StartServiceC(serviceName);
-    if (startResult != 0) {
-        return -2;
-    }
-
-    return 0;
-}
-
 extern "C" __declspec(dllexport) int PauseService(const char* serviceName) {
     return PerformServiceControl(serviceName, SC_MANAGER_ALL_ACCESS, SERVICE_PAUSE_CONTINUE, SERVICE_CONTROL_PAUSE);
 }
