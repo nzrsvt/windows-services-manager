@@ -2,7 +2,6 @@
 #include <vector>
 #include <windows.h>
 
-extern "C" __declspec(dllexport) const wchar_t** EnumerateServices();
 extern "C" __declspec(dllexport) int StartServiceC(const char* serviceName);
 extern "C" __declspec(dllexport) int StopService(const char* serviceName);
 extern "C" __declspec(dllexport) int RestartService(const char* serviceName);
@@ -13,3 +12,4 @@ extern "C" __declspec(dllexport) const char* GetServiceInfo(const char* serviceN
 extern "C" __declspec(dllexport) DWORD GetServicesCount();
 extern "C" __declspec(dllexport) const char** EnumerateServicesWithInfo();
 extern "C" __declspec(dllexport) BOOL CanServiceBePaused(const char* serviceName);
+extern "C" __declspec(dllexport) BOOL CanServiceBeStopped(const char* serviceName);

@@ -19,6 +19,8 @@ wsm_dll.GetServiceInfo.argtypes = [ctypes.c_char_p]
 wsm_dll.GetServiceInfo.restype = ctypes.c_char_p
 wsm_dll.CanServiceBePaused.argtypes = [ctypes.c_char_p]
 wsm_dll.CanServiceBePaused.restype = ctypes.c_bool
+wsm_dll.CanServiceBeStopped.argtypes = [ctypes.c_char_p]
+wsm_dll.CanServiceBeStopped.restype = ctypes.c_bool
 
 SERVICE_AUTO_START = 2
 SERVICE_BOOT_START = 0
@@ -58,8 +60,11 @@ def update_buttons_state(event=None):
             change_start_type_button.config(state=tk.NORMAL)
         elif current_state == "Running":
             start_button.config(state=tk.DISABLED)
-            stop_button.config(state=tk.NORMAL)
-            restart_button.config(state=tk.NORMAL)
+            state = tk.DISABLED
+            if wsm_dll.CanServiceBeStopped(service_name.encode("utf-8")):
+                state = tk.NORMAL
+            stop_button.config(state=state)
+            restart_button.config(state=state)
             pause_button.config(state=tk.NORMAL if wsm_dll.CanServiceBePaused(service_name.encode("utf-8")) else tk.DISABLED)
             continue_button.config(state=tk.DISABLED)
             change_start_type_button.config(state=tk.NORMAL)
@@ -195,8 +200,6 @@ def update_services_tree(services=None):
     selected_service = services_tree.selection()
     if selected_service:
         selected_service_name = services_tree.item(selected_service, 'text')
-
-    print(selected_service)
 
     if services_tree.get_children():
         for item in services_tree.get_children():
