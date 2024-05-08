@@ -1,5 +1,4 @@
 #pragma once
-#include <vector>
 #include <windows.h>
 
 extern "C" __declspec(dllexport) int StartServiceC(const char* serviceName);
