@@ -1,4 +1,3 @@
-from time import sleep
 import tkinter as tk
 from tkinter import ttk
 import ctypes
@@ -11,32 +10,14 @@ import sv_ttk
 
 class WindowsServiceManager:
     def __init__(self):
+        self.setup_dll()
+        self.setup_gui()
+    
+    def setup_dll(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         self.dll_path = os.path.join(self.current_dir + "\\wsm_dll\\x64\\Debug\\", "wsm_dll.dll")
         self.wsm_dll = ctypes.CDLL(self.dll_path)
-        self.setup_dll_functions()
-        
-        self.SERVICE_AUTO_START = 2
-        self.SERVICE_BOOT_START = 0
-        self.SERVICE_DEMAND_START = 3
-        self.SERVICE_DISABLED = 4
-        self.SERVICE_SYSTEM_START = 1
 
-        self.start_type_mapping = {
-            "Boot": self.SERVICE_BOOT_START,
-            "System": self.SERVICE_SYSTEM_START,
-            "Auto": self.SERVICE_AUTO_START,
-            "Manual": self.SERVICE_DEMAND_START,
-            "Disabled": self.SERVICE_DISABLED,
-            "Unknown": 0 
-        }
-
-        self.current_sort_column = None
-        self.current_sort_reverse = False
-
-        self.setup_gui()
-    
-    def setup_dll_functions(self):
         self.wsm_dll.GetServicesCount.restype = wintypes.DWORD
         self.wsm_dll.EnumerateServicesWithInfo.restype = ctypes.POINTER(ctypes.c_char_p)
         self.wsm_dll.GetServiceInfo.argtypes = [ctypes.c_char_p]
@@ -55,14 +36,13 @@ class WindowsServiceManager:
         self.operations_frame = ttk.Frame(self.root)
         self.operations_frame.grid(row=0, column=0)
         
+        self.icons = self.load_icons()
         self.setup_buttons()
         self.setup_search_entry()
         self.setup_services_tree()
         self.setup_status_label()
 
     def setup_buttons(self):
-        self.icons = self.load_icons()
-
         self.start_button = ttk.Button(self.operations_frame, image=self.icons["start"], command=self.start_service)
         self.start_button.grid(row=0, column=0, padx=5, pady=5)
         Hovertip(self.start_button, 'Start Service', hover_delay=500)
@@ -94,7 +74,8 @@ class WindowsServiceManager:
             "restart": "icons/restart_icon.png",
             "pause": "icons/pause_icon.png",
             "continue": "icons/continue_icon.png",
-            "change_start_type": "icons/change_start_type_icon.png"
+            "change_start_type": "icons/change_start_type_icon.png",
+            "search": "icons/search_icon.png"
         }
         icons = {}
         for name, path in icon_paths.items():
@@ -110,16 +91,14 @@ class WindowsServiceManager:
         self.search_entry.bind('<FocusIn>', self.on_search_entry_click)
         self.search_entry.bind('<FocusOut>', self.on_search_focusout)
 
-        search_image = Image.open("icons/search_icon.png").resize((32, 32), Image.LANCZOS)
-        search_icon = ImageTk.PhotoImage(search_image)
-        
-        self.search_icon = search_icon
-
-        self.search_button = ttk.Button(self.operations_frame, image=self.search_icon, command=self.update_services_tree)
+        self.search_button = ttk.Button(self.operations_frame, image=self.icons["search"], command=self.update_services_tree)
         self.search_button.grid(row=0, column=7, padx=5, pady=5)
         Hovertip(self.search_button, 'Search Service', hover_delay=500)
 
     def setup_services_tree(self):
+        self.current_sort_column = None
+        self.current_sort_reverse = False
+
         self.services_frame = ttk.Frame(self.root)
         self.services_frame.grid(row=1, column=0, sticky="nsew", padx=5)
         self.services_tree_scrollbar = tk.Scrollbar(self.services_frame)
@@ -313,6 +292,21 @@ class WindowsServiceManager:
             self.show_start_type_selection_dialog(service_name, current_start_type)
 
     def show_start_type_selection_dialog(self, service_name, current_start_type):
+        self.SERVICE_AUTO_START = 2
+        self.SERVICE_BOOT_START = 0
+        self.SERVICE_DEMAND_START = 3
+        self.SERVICE_DISABLED = 4
+        self.SERVICE_SYSTEM_START = 1
+
+        self.start_type_mapping = {
+            "Boot": self.SERVICE_BOOT_START,
+            "System": self.SERVICE_SYSTEM_START,
+            "Auto": self.SERVICE_AUTO_START,
+            "Manual": self.SERVICE_DEMAND_START,
+            "Disabled": self.SERVICE_DISABLED,
+            "Unknown": 0 
+        }
+
         def confirm_and_change_start_type():
             new_start_type = selected_start_type.get()
             dialog.destroy()
